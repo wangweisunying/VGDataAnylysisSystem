@@ -17,7 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import javax.mail.MessagingException;
 import model.DataBaseCon;
+import model.EmailAndText;
 import model.ExcelOperation;
 import model.LXDataBaseCon;
 import org.apache.poi.ss.usermodel.Row;
@@ -40,16 +42,31 @@ import panels.PanelThyroid;
  * @author Wei Wang
  */
 public class VGDataAnylysisSystem_ver1 {
-    
-        private static Panel[] panelToTest = {new PanelNut() , new PanelPeanut() , new PanelSeaFood()};
-    
-    
-//    private static Panel[] panelToTest = {new PanelCorn(), new PanelDairy(),new PanelEgg(),new PanelHormonal(),new PanelLectin(),
-//                                          new PanelNut() , new PanelPeanut() , new PanelSeaFood() , new PanelSoy() , new PanelThyroid()};
+        
+      private static TestPanel[] testList = {TestPanel.CORN , TestPanel.LECTIN};
+      private String path = "C:\\Users\\Wei Wang\\Desktop\\VGANAlysis\\testOutPut\\sample.xlsx";
+
+      
+
     /**
      * @param args the command line arguments
      * @throws java.sql.SQLException
      */
+      
+    private enum TestPanel{
+        CORN,
+        DAIRY,
+        EGG,
+        HORMONAL,
+        LECTIN,
+        NUT,
+        PEANUT,
+        SEAFOOD,
+        SOY,
+        THYROID;  
+    }  
+      
+      
     private class OutPutUnit {
 
         private List<Double> DataList;
@@ -70,22 +87,68 @@ public class VGDataAnylysisSystem_ver1 {
         }
     }
 
-    private String path = "C:\\Users\\Wei Wang\\Desktop\\VGANAlysis\\testOutPut\\sample.xlsx";
+    
     private List<String> titleList = new ArrayList();
     private Map<String, double[]> throidRefMap;
 
-    public static void main(String[] args) throws SQLException, IOException {
+    public static void main(String[] args) throws SQLException, IOException, MessagingException {
         VGDataAnylysisSystem_ver1 test = new VGDataAnylysisSystem_ver1();
-//        Panel Panel = new PanelCorn();
-//        Panel Pane2 = new PanelHormonal();
-//        Panel Pane3 = new PanelThyroid();
-//        Panel Pane4 = new PanelLectin();
-//        Panel Pane5 = new PanelSeaFood();
-        List<Panel> panelList = new ArrayList(Arrays.asList(panelToTest));
+        List<Panel> panelList = test.convertToList(testList);
         boolean hasThroid = test.preCheck(panelList);
-//        System.out.println(hasThroid);
         Map<Integer, List<OutPutUnit>> dataMap = test.getData(panelList, test.getRefMap(panelList), hasThroid);
         test.exportToExcel(dataMap);
+        test.sendEmail();
+        
+        
+    }
+    
+    private void sendEmail() throws MessagingException{
+        StringBuilder sb = new StringBuilder();
+        for(TestPanel x : testList){
+            sb.append(x.toString() + "vs");
+        }
+        sb.setLength(sb.length() - 2);
+
+        EmailAndText.sendEmail("", "", "thushanis@vibrantgenomics.com", "VG Test Report Auto Mail--- Please do not reply", sb.toString(), path);
+    }
+    
+    private List<Panel> convertToList(TestPanel[] testList) {
+        List<Panel> res = new ArrayList();
+        for(TestPanel test :  testList){
+            switch(test){
+                case CORN:
+                    res.add(new PanelCorn());
+                    break;
+                case DAIRY:
+                    res.add(new PanelDairy());
+                    break;
+                case EGG:
+                    res.add(new PanelEgg());
+                    break;
+                case HORMONAL:
+                    res.add(new PanelHormonal());
+                    break;
+                case LECTIN:
+                    res.add(new PanelLectin());
+                    break;
+                case NUT:
+                    res.add(new PanelNut());
+                    break;
+                case PEANUT:
+                    res.add(new PanelPeanut());
+                    break;
+                case SEAFOOD:
+                    res.add(new PanelSeaFood());
+                    break;
+                case SOY:
+                    res.add(new PanelSoy());
+                    break;
+                case THYROID:
+                    res.add(new PanelThyroid());
+                    break;
+            }
+        }
+        return res;
     }
 
     private boolean preCheck(List<Panel> panelList) {
@@ -336,21 +399,23 @@ public class VGDataAnylysisSystem_ver1 {
         Map<Integer, List<OutPutUnit>> patientIDMap = new HashMap();
         for (int sampleId : res.keySet()) {
             int patientId = res.get(sampleId).patient_id;
-            if (!patientIDMap.containsKey(patientId)) {
-                patientIDMap.put(patientId, new ArrayList(Arrays.asList(res.get(sampleId))));
-            } else {
-                patientIDMap.get(patientId).add(res.get(sampleId));
-
-            }
+            patientIDMap.computeIfAbsent(patientId, x -> new ArrayList()).add(res.get(sampleId));
+            
+//            if (!patientIDMap.containsKey(patientId)) {
+//                patientIDMap.put(patientId, new ArrayList(Arrays.asList(res.get(sampleId))));
+//            } else {
+//                patientIDMap.get(patientId).add(res.get(sampleId));
+//            }
         }
         Map<Integer, List<OutPutUnit>> ctMap = new HashMap();
         for (int patientId : patientIDMap.keySet()) {
             int size = patientIDMap.get(patientId).size();
-            if (ctMap.containsKey(size)) {
-                ctMap.get(size).addAll(patientIDMap.get(patientId));
-            } else {
-                ctMap.put(size, new ArrayList(patientIDMap.get(patientId)));
-            }
+            ctMap.computeIfAbsent(size , x-> new ArrayList()).addAll(patientIDMap.get(patientId));
+//            if (ctMap.containsKey(size)) {
+//                ctMap.get(size).addAll(patientIDMap.get(patientId));
+//            } else {
+//                ctMap.put(size, new ArrayList(patientIDMap.get(patientId)));
+//            }
         }
 
 //        for(int size : ctMap.keySet()){
