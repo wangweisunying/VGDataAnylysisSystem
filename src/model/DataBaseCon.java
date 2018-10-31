@@ -20,6 +20,7 @@ import java.sql.Statement;
  * @author Wei Wang
  */
 public class DataBaseCon {
+    
     protected Statement stmt;
     protected DataBaseCon(String name , String user , String pw) throws SQLException{
         Connection mycon = DriverManager.getConnection(name, user, pw);
