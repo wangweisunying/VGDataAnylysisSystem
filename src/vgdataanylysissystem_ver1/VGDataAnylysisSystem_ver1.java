@@ -25,9 +25,14 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import panels.Panel;
 import panels.PanelCorn;
+import panels.PanelDairy;
+import panels.PanelEgg;
 import panels.PanelHormonal;
 import panels.PanelLectin;
+import panels.PanelNut;
+import panels.PanelPeanut;
 import panels.PanelSeaFood;
+import panels.PanelSoy;
 import panels.PanelThyroid;
 
 /**
@@ -35,7 +40,12 @@ import panels.PanelThyroid;
  * @author Wei Wang
  */
 public class VGDataAnylysisSystem_ver1 {
-
+    
+        private static Panel[] panelToTest = {new PanelSoy()};
+    
+    
+//    private static Panel[] panelToTest = {new PanelCorn(), new PanelDairy(),new PanelEgg(),new PanelHormonal(),new PanelLectin(),
+//                                          new PanelNut() , new PanelPeanut() , new PanelSeaFood() , new PanelSoy() , new PanelThyroid()};
     /**
      * @param args the command line arguments
      * @throws java.sql.SQLException
@@ -68,10 +78,10 @@ public class VGDataAnylysisSystem_ver1 {
         VGDataAnylysisSystem_ver1 test = new VGDataAnylysisSystem_ver1();
 //        Panel Panel = new PanelCorn();
 //        Panel Pane2 = new PanelHormonal();
-        Panel Pane3 = new PanelThyroid();
-        Panel Pane4 = new PanelLectin();
+//        Panel Pane3 = new PanelThyroid();
+//        Panel Pane4 = new PanelLectin();
 //        Panel Pane5 = new PanelSeaFood();
-        List<Panel> panelList = new ArrayList(Arrays.asList(Pane3 , Pane4));
+        List<Panel> panelList = new ArrayList(Arrays.asList(panelToTest));
         boolean hasThroid = test.preCheck(panelList);
 //        System.out.println(hasThroid);
         Map<Integer, List<OutPutUnit>> dataMap = test.getData(panelList, test.getRefMap(panelList), hasThroid);
