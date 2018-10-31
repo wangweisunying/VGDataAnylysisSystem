@@ -41,7 +41,7 @@ import panels.PanelThyroid;
  */
 public class VGDataAnylysisSystem_ver1 {
     
-        private static Panel[] panelToTest = {new PanelSoy()};
+        private static Panel[] panelToTest = {new PanelNut() , new PanelPeanut() , new PanelSeaFood()};
     
     
 //    private static Panel[] panelToTest = {new PanelCorn(), new PanelDairy(),new PanelEgg(),new PanelHormonal(),new PanelLectin(),
@@ -100,7 +100,12 @@ public class VGDataAnylysisSystem_ver1 {
 
     private void exportToExcel(Map<Integer, List<OutPutUnit>> dataMap) throws IOException {
         Workbook wb = ExcelOperation.getWriteConnection(ExcelOperation.ExcelType.XLSX);
-
+        
+        if(dataMap.isEmpty()){
+            System.out.println("There tests do not share patient!!!");
+            return;
+        }
+        
         for (int visit : dataMap.keySet()) {
 
             Sheet sheet = wb.createSheet("visit_" + visit);
@@ -129,6 +134,7 @@ public class VGDataAnylysisSystem_ver1 {
             }
 
         }
+        
         ExcelOperation.writeExcel(path, wb);
         wb.close();
     }
