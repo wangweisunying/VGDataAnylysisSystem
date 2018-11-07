@@ -26,16 +26,20 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import panels.Panel;
+import panels.PanelCardiology;
 import panels.PanelCorn;
 import panels.PanelDairy;
 import panels.PanelEgg;
 import panels.PanelHormonal;
 import panels.PanelLectin;
+import panels.PanelLiver;
+import panels.PanelMicronutrients;
 import panels.PanelNut;
 import panels.PanelPeanut;
 import panels.PanelSeaFood;
 import panels.PanelSoy;
 import panels.PanelThyroid;
+import panels.PanelWheatZoomer;
 
 /**
  *
@@ -43,7 +47,7 @@ import panels.PanelThyroid;
  */
 public class VGDataAnylysisSystem_ver1 {
         
-      private static TestPanel[] testList = {TestPanel.CORN , TestPanel.LECTIN};
+      private static TestPanel[] testList = {TestPanel.CARDIOLOGY , TestPanel.CORN};
       private String path = "C:\\Users\\Wei Wang\\Desktop\\VGANAlysis\\testOutPut\\sample.xlsx";
 
       
@@ -63,7 +67,11 @@ public class VGDataAnylysisSystem_ver1 {
         PEANUT,
         SEAFOOD,
         SOY,
-        THYROID;  
+        THYROID,
+        LIVER,
+        MICRONUTRIENTS,
+        CARDIOLOGY,
+        WHEAT
     }  
       
       
@@ -97,7 +105,7 @@ public class VGDataAnylysisSystem_ver1 {
         boolean hasThroid = test.preCheck(panelList);
         Map<Integer, List<OutPutUnit>> dataMap = test.getData(panelList, test.getRefMap(panelList), hasThroid);
         test.exportToExcel(dataMap);
-        test.sendEmail();
+//        test.sendEmail();
         
         
     }
@@ -146,6 +154,24 @@ public class VGDataAnylysisSystem_ver1 {
                 case THYROID:
                     res.add(new PanelThyroid());
                     break;
+                case LIVER:
+                    res.add(new PanelLiver());
+                    break;
+                case MICRONUTRIENTS:
+                    res.add(new PanelMicronutrients());
+                    break;
+                case CARDIOLOGY:
+                    res.add(new PanelCardiology());
+                    break;
+                case WHEAT:
+                    res.add(new PanelWheatZoomer());
+                    break;
+//                    
+//                    MICRONUTRIENTS,
+//        CARDIOLOGY,
+//        WHEAT
+              
+                 
             }
         }
         return res;
@@ -355,8 +381,21 @@ public class VGDataAnylysisSystem_ver1 {
                         break;
                     }
                     if (i - 7 - ct <= testLengthList.get(listIndex)) {
-
-                        double unit = rsData.getDouble(i);
+                        String tmpUnit = rsData.getString(i);
+                        double unit;
+                        if(tmpUnit.charAt(0) == '<'){
+                            unit = Double.parseDouble(tmpUnit.substring(1)) - 0.01;
+                        }
+                        else if(tmpUnit.charAt(0) == '>'){
+                            unit = Double.parseDouble(tmpUnit.substring(1)) + 0.01;
+                        }
+                        else if(!Character.isDigit(tmpUnit.charAt(0))){
+                            unit = -1.0;
+                        }
+                        else{
+                            unit = rsData.getDouble(i);
+                        }
+                         
                         dataList.add(unit);
                         int tracking_id = rsData.getInt(i + testLengthList.get(listIndex));
                         double[] ref = new double[]{-1, -1};
