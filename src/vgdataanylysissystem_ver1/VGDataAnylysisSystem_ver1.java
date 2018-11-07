@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import javax.mail.MessagingException;
 import model.DataBaseCon;
 import model.EmailAndText;
@@ -28,6 +29,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import panels.Panel;
 import panels.PanelCardiology;
 import panels.PanelCorn;
+import panels.PanelCreatinine;
 import panels.PanelDairy;
 import panels.PanelEgg;
 import panels.PanelHormonal;
@@ -47,10 +49,8 @@ import panels.PanelWheatZoomer;
  */
 public class VGDataAnylysisSystem_ver1 {
         
-      private static TestPanel[] testList = {TestPanel.CARDIOLOGY , TestPanel.CORN};
+      private static TestPanel[] testList = {TestPanel.THYROID ,TestPanel.MICRONUTRIENTS };
       private String path = "C:\\Users\\Wei Wang\\Desktop\\VGANAlysis\\testOutPut\\sample.xlsx";
-
-      
 
     /**
      * @param args the command line arguments
@@ -71,7 +71,8 @@ public class VGDataAnylysisSystem_ver1 {
         LIVER,
         MICRONUTRIENTS,
         CARDIOLOGY,
-        WHEAT
+        WHEAT,
+        CREATININE
     }  
       
       
@@ -79,11 +80,11 @@ public class VGDataAnylysisSystem_ver1 {
 
         private List<Double> DataList;
         private int patient_id, sample_id, Age;
-        private String gender, height, weight, sampleCollectionTime;
+        private String gender, height, weight, sampleCollectionTime, symptoms;
 
         private OutPutUnit(int patient_id, int sample_id, int Age, String gender,
                 String height, String weight, String sampleCollectionTime,
-                List<Double> DataList) {
+                List<Double> DataList ,String symptoms) {
             this.patient_id = patient_id;
             this.sample_id = sample_id;
             this.Age = Age;
@@ -92,6 +93,7 @@ public class VGDataAnylysisSystem_ver1 {
             this.weight = weight;
             this.sampleCollectionTime = sampleCollectionTime;
             this.DataList = DataList;
+            this.symptoms = symptoms;
         }
     }
 
@@ -166,7 +168,10 @@ public class VGDataAnylysisSystem_ver1 {
                 case WHEAT:
                     res.add(new PanelWheatZoomer());
                     break;
-//                    
+                case CREATININE:
+                    res.add(new PanelCreatinine());
+                    break;
+//                   
 //                    MICRONUTRIENTS,
 //        CARDIOLOGY,
 //        WHEAT
@@ -195,17 +200,42 @@ public class VGDataAnylysisSystem_ver1 {
             return;
         }
         
+        
+        
+        
+        
         for (int visit : dataMap.keySet()) {
 
             Sheet sheet = wb.createSheet("visit_" + visit);
             int rowCt = 0;
             Row row = sheet.createRow(rowCt++);
             int colCt = 0;
+            
+            
+            Map<String , Integer> symMap = new TreeMap();
+            for (OutPutUnit unit : dataMap.get(visit)){
+               if(unit.symptoms == null){
+                   continue;
+               }
+               String[] arr = unit.symptoms.split("__");
+               for(String x : arr){
+                   symMap.putIfAbsent(x.split("&&")[0] , -1);
+               }
+            }
+            
+            
+            
             for (String title : titleList) {
-
                 row.createCell(colCt).setCellValue(title);
                 sheet.autoSizeColumn(colCt++);
             }
+            
+            for (String sympTitle : symMap.keySet()){
+                row.createCell(colCt).setCellValue(sympTitle);
+                symMap.put(sympTitle, colCt);
+                sheet.autoSizeColumn(colCt++);
+            }
+            
 
             for (OutPutUnit unit : dataMap.get(visit)) {
                 row = sheet.createRow(rowCt++);
@@ -220,6 +250,18 @@ public class VGDataAnylysisSystem_ver1 {
                 for (double x : unit.DataList) {
                     row.createCell(colCt++).setCellValue(x);
                 }
+                if(unit.symptoms != null){
+                    String[] symptomsArr = unit.symptoms.split("__");
+                    for(String sym : symptomsArr){
+                        String[] chunk = sym.split("&&");
+                        if(chunk.length < 2){
+                            continue;
+                        }
+//             
+                        row.createCell(symMap.get(chunk[0])).setCellValue(chunk[1]);
+                    }
+                }
+                
             }
 
         }
@@ -269,10 +311,17 @@ public class VGDataAnylysisSystem_ver1 {
                 queryMiddle.append(" join " + MasterPanel + " on " + MasterPanel + ".sample_id = " + joinBase);
             }
         }
+        
+        
         queryMiddle.append(" join vibrant_america_information.sample_data sd on sd.sample_id = " + joinBase);
-        queryMiddle.append(" join vibrant_america_information.`patient_details` pd on sd.patient_id = pd.patient_id where sd.customer_id < 900000 ;");
-
-        queryStart.setLength(queryStart.length() - 1);
+        queryMiddle.append(" join vibrant_america_information.`patient_details` pd on sd.patient_id = pd.patient_id left join patient_profile.patient_survey_link psl on psl.julien_barcode = sd.julien_barcode\n" +
+"		left JOIN patient_profile.patient_survey_data psd ON psl.save_id = psd.save_id\n" +
+"		left JOIN patient_profile.survey_answers sa ON psd.answer_id = sa.answer_id\n" +
+"		left JOIN patient_profile.survey_questions  sq  ON psd.question_id = sq.question_id where sd.customer_id < 900000  group by sd.sample_id ;");
+        
+        
+        queryStart.append("group_concat( concat(sq.question_value , '&&', if(psd.user_typed is null  ,sa.answer , psd.user_typed)) separator '__') AS symptoms");
+//        queryStart.setLength(queryStart.length() - 1);
         String query = queryStart.toString() + queryMiddle.toString();
 
         System.out.println(query);
@@ -300,6 +349,7 @@ public class VGDataAnylysisSystem_ver1 {
             }
 
         }
+//        titleList.add(rsData.getMetaData().getColumnName(colCt));
         System.out.println(titleList);
 
         if (hasThriod) {
@@ -364,7 +414,7 @@ public class VGDataAnylysisSystem_ver1 {
 //            private OutPutUnit(int patient_id, int sample_id , int Age , String gender , 
 //                            String height ,String weight , String sampleCollectionTime ,
 //                            List<Double> DataList ){
-                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList));
+                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList , rsData.getString(colCt)));
             }
         } else {
             while (rsData.next()) {
@@ -425,7 +475,7 @@ public class VGDataAnylysisSystem_ver1 {
 //            private OutPutUnit(int patient_id, int sample_id , int Age , String gender , 
 //                            String height ,String weight , String sampleCollectionTime ,
 //                            List<Double> DataList ){
-                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList));
+                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList , rsData.getString(colCt)));
             }
         }
 
