@@ -12,9 +12,9 @@ import java.util.Arrays;
  *
  * @author Wei Wang
  */
-public class PanelMicronutrients extends Panel {
-    public PanelMicronutrients(){
+public class PanelMicronutrientsV1 extends Panel {
+    public PanelMicronutrientsV1(){
         panelList = new ArrayList();
-        panelList.addAll(Arrays.asList("result_micronutrients_v2_panel1" , "result_micronutrients_v2_panel2" , "result_micronutrients_v2_panel3"));
+        panelList.addAll(Arrays.asList("result_micronutrients_panel1" , "result_micronutrients_panel2" , "result_micronutrients_panel3"));
     }
 }

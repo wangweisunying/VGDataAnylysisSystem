@@ -18,6 +18,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.SheetConditionalFormatting;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
@@ -28,7 +29,8 @@ public class ExcelOperation {
 
     public static enum ExcelType {
         XLS,
-        XLSX
+        XLSX,
+        SXSSF
     }
 
     public static Workbook getReadConnection(String path, ExcelType type) throws IOException {
@@ -40,6 +42,9 @@ public class ExcelOperation {
                 break;
             case XLSX:
                 wb = new XSSFWorkbook(fileIn);
+                break;
+            case SXSSF:
+                wb = new SXSSFWorkbook(1000);
                 break;
             default:
                 wb = null;
@@ -57,6 +62,9 @@ public class ExcelOperation {
                 break;
             case XLSX:
                 wb = new XSSFWorkbook();
+                break;
+            case SXSSF:
+                wb = new SXSSFWorkbook(1000);
                 break;
             default:
                 wb = null;

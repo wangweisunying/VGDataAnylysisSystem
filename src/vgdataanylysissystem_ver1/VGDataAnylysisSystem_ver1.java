@@ -9,14 +9,12 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
 import java.util.TreeMap;
 import javax.mail.MessagingException;
 import model.DataBaseCon;
@@ -31,11 +29,14 @@ import panels.PanelCardiology;
 import panels.PanelCorn;
 import panels.PanelCreatinine;
 import panels.PanelDairy;
+import panels.PanelDiabete;
 import panels.PanelEgg;
 import panels.PanelHormonal;
 import panels.PanelLectin;
 import panels.PanelLiver;
-import panels.PanelMicronutrients;
+import panels.PanelMicronutrientsV1;
+import panels.PanelMicronutrientsV2;
+import panels.PanelMicronutrientsV3;
 import panels.PanelNut;
 import panels.PanelPeanut;
 import panels.PanelSeaFood;
@@ -49,9 +50,9 @@ import panels.PanelWheatZoomer;
  */
 public class VGDataAnylysisSystem_ver1 {
         
-      private static TestPanel[] testList = {TestPanel.THYROID ,TestPanel.MICRONUTRIENTS };
+      private static TestPanel[] testList = {TestPanel.MICRONUTRIENTS_V1 ,TestPanel.DIABETES};
       private String path = "C:\\Users\\Wei Wang\\Desktop\\VGANAlysis\\testOutPut\\sample.xlsx";
-
+      private String email = "thushanis@vibrantgenomics.com";
     /**
      * @param args the command line arguments
      * @throws java.sql.SQLException
@@ -69,22 +70,25 @@ public class VGDataAnylysisSystem_ver1 {
         SOY,
         THYROID,
         LIVER,
-        MICRONUTRIENTS,
+        MICRONUTRIENTS_V1,
+        MICRONUTRIENTS_V2,
+        MICRONUTRIENTS_V3,
         CARDIOLOGY,
         WHEAT,
-        CREATININE
+        CREATININE,
+        DIABETES
     }  
       
       
     private class OutPutUnit {
 
         private List<Double> DataList;
-        private int patient_id, sample_id, Age;
-        private String gender, height, weight, sampleCollectionTime, symptoms;
+        private int patient_id, sample_id, Age ,julienBarcode;
+        private String gender, height, weight, sampleCollectionTime;
 
         private OutPutUnit(int patient_id, int sample_id, int Age, String gender,
                 String height, String weight, String sampleCollectionTime,
-                List<Double> DataList ,String symptoms) {
+                List<Double> DataList ,int julienBarcode) {
             this.patient_id = patient_id;
             this.sample_id = sample_id;
             this.Age = Age;
@@ -93,21 +97,24 @@ public class VGDataAnylysisSystem_ver1 {
             this.weight = weight;
             this.sampleCollectionTime = sampleCollectionTime;
             this.DataList = DataList;
-            this.symptoms = symptoms;
+            this.julienBarcode = julienBarcode;
         }
     }
 
     
     private List<String> titleList = new ArrayList();
     private Map<String, double[]> throidRefMap;
-
+    private Map<Integer ,List<String[]>> SymMap;
+    private Map<String , Integer> titleColMap;
+    
+    
     public static void main(String[] args) throws SQLException, IOException, MessagingException {
         VGDataAnylysisSystem_ver1 test = new VGDataAnylysisSystem_ver1();
         List<Panel> panelList = test.convertToList(testList);
         boolean hasThroid = test.preCheck(panelList);
         Map<Integer, List<OutPutUnit>> dataMap = test.getData(panelList, test.getRefMap(panelList), hasThroid);
         test.exportToExcel(dataMap);
-//        test.sendEmail();
+        test.sendEmail();
         
         
     }
@@ -119,7 +126,7 @@ public class VGDataAnylysisSystem_ver1 {
         }
         sb.setLength(sb.length() - 2);
 
-        EmailAndText.sendEmail("", "", "thushanis@vibrantgenomics.com", "VG Test Report Auto Mail--- Please do not reply", sb.toString(), path);
+        EmailAndText.sendEmail("wei_vg@vibrantgenomics.com", "vibrant@2014",email, "VG Test Report Auto Mail--- Please do not reply", sb.toString(), path);
     }
     
     private List<Panel> convertToList(TestPanel[] testList) {
@@ -159,8 +166,14 @@ public class VGDataAnylysisSystem_ver1 {
                 case LIVER:
                     res.add(new PanelLiver());
                     break;
-                case MICRONUTRIENTS:
-                    res.add(new PanelMicronutrients());
+                case MICRONUTRIENTS_V1:
+                    res.add(new PanelMicronutrientsV1());
+                    break;
+                case MICRONUTRIENTS_V2:
+                    res.add(new PanelMicronutrientsV2());
+                    break;
+                case MICRONUTRIENTS_V3:
+                    res.add(new PanelMicronutrientsV3());
                     break;
                 case CARDIOLOGY:
                     res.add(new PanelCardiology());
@@ -170,6 +183,9 @@ public class VGDataAnylysisSystem_ver1 {
                     break;
                 case CREATININE:
                     res.add(new PanelCreatinine());
+                    break;
+                case DIABETES:
+                    res.add(new PanelDiabete());
                     break;
 //                   
 //                    MICRONUTRIENTS,
@@ -193,7 +209,7 @@ public class VGDataAnylysisSystem_ver1 {
     }
 
     private void exportToExcel(Map<Integer, List<OutPutUnit>> dataMap) throws IOException {
-        Workbook wb = ExcelOperation.getWriteConnection(ExcelOperation.ExcelType.XLSX);
+        Workbook wb = ExcelOperation.getWriteConnection(ExcelOperation.ExcelType.SXSSF);
         
         if(dataMap.isEmpty()){
             System.out.println("There tests do not share patient!!!");
@@ -210,31 +226,17 @@ public class VGDataAnylysisSystem_ver1 {
             int rowCt = 0;
             Row row = sheet.createRow(rowCt++);
             int colCt = 0;
-            
-            
-            Map<String , Integer> symMap = new TreeMap();
-            for (OutPutUnit unit : dataMap.get(visit)){
-               if(unit.symptoms == null){
-                   continue;
-               }
-               String[] arr = unit.symptoms.split("__");
-               for(String x : arr){
-                   symMap.putIfAbsent(x.split("&&")[0] , -1);
-               }
-            }
-            
-            
-            
+                     
             for (String title : titleList) {
-                row.createCell(colCt).setCellValue(title);
-                sheet.autoSizeColumn(colCt++);
+                row.createCell(colCt++).setCellValue(title);
+//                sheet.autoSizeColumn(colCt++);
             }
             
-            for (String sympTitle : symMap.keySet()){
-                row.createCell(colCt).setCellValue(sympTitle);
-                symMap.put(sympTitle, colCt);
-                sheet.autoSizeColumn(colCt++);
-            }
+//            for (String sympTitle : symMap.keySet()){
+//                row.createCell(colCt).setCellValue(sympTitle);
+//                symMap.put(sympTitle, colCt++);
+////                sheet.autoSizeColumn(colCt++);
+//            }
             
 
             for (OutPutUnit unit : dataMap.get(visit)) {
@@ -250,16 +252,12 @@ public class VGDataAnylysisSystem_ver1 {
                 for (double x : unit.DataList) {
                     row.createCell(colCt++).setCellValue(x);
                 }
-                if(unit.symptoms != null){
-                    String[] symptomsArr = unit.symptoms.split("__");
-                    for(String sym : symptomsArr){
-                        String[] chunk = sym.split("&&");
-                        if(chunk.length < 2){
-                            continue;
-                        }
-//             
-                        row.createCell(symMap.get(chunk[0])).setCellValue(chunk[1]);
+                
+                if(SymMap.containsKey(unit.julienBarcode)){
+                    for(String[] sym : SymMap.get(unit.julienBarcode)){
+                        row.createCell(titleColMap.get(sym[0])).setCellValue(sym[1]);
                     }
+                    
                 }
                 
             }
@@ -272,7 +270,9 @@ public class VGDataAnylysisSystem_ver1 {
 
     private Map<Integer, List<OutPutUnit>> getData(List<Panel> panelList, Map<Integer, double[]> trackingRangeMap, boolean hasThriod) throws SQLException {
         Map<Integer, OutPutUnit> res = new HashMap();
-
+       
+        SymMap = new HashMap();
+        
         DataBaseCon db = new LXDataBaseCon();
 
         List<Integer> testLengthList = new ArrayList(); // length of each test_panel;
@@ -314,13 +314,10 @@ public class VGDataAnylysisSystem_ver1 {
         
         
         queryMiddle.append(" join vibrant_america_information.sample_data sd on sd.sample_id = " + joinBase);
-        queryMiddle.append(" join vibrant_america_information.`patient_details` pd on sd.patient_id = pd.patient_id left join patient_profile.patient_survey_link psl on psl.julien_barcode = sd.julien_barcode\n" +
-"		left JOIN patient_profile.patient_survey_data psd ON psl.save_id = psd.save_id\n" +
-"		left JOIN patient_profile.survey_answers sa ON psd.answer_id = sa.answer_id\n" +
-"		left JOIN patient_profile.survey_questions  sq  ON psd.question_id = sq.question_id where sd.customer_id < 900000  group by sd.sample_id ;");
+        queryMiddle.append(" join vibrant_america_information.`patient_details` pd on sd.patient_id = pd.patient_id where sd.customer_id < 900000  group by sd.sample_id ;");
         
         
-        queryStart.append("group_concat( concat(sq.question_value , '&&', if(psd.user_typed is null  ,sa.answer , psd.user_typed)) separator '__') AS symptoms");
+        queryStart.append("sd.julien_barcode");
 //        queryStart.setLength(queryStart.length() - 1);
         String query = queryStart.toString() + queryMiddle.toString();
 
@@ -351,7 +348,9 @@ public class VGDataAnylysisSystem_ver1 {
         }
 //        titleList.add(rsData.getMetaData().getColumnName(colCt));
         System.out.println(titleList);
-
+        
+        StringBuilder julienBarcodeSB = new StringBuilder();
+        
         if (hasThriod) {
             while (rsData.next()) {
                 int listIndex = 0;
@@ -414,7 +413,10 @@ public class VGDataAnylysisSystem_ver1 {
 //            private OutPutUnit(int patient_id, int sample_id , int Age , String gender , 
 //                            String height ,String weight , String sampleCollectionTime ,
 //                            List<Double> DataList ){
-                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList , rsData.getString(colCt)));
+                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList , rsData.getInt(colCt)));
+                
+                julienBarcodeSB.append("'").append(rsData.getInt(colCt)).append("',");
+                
             }
         } else {
             while (rsData.next()) {
@@ -475,7 +477,8 @@ public class VGDataAnylysisSystem_ver1 {
 //            private OutPutUnit(int patient_id, int sample_id , int Age , String gender , 
 //                            String height ,String weight , String sampleCollectionTime ,
 //                            List<Double> DataList ){
-                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList , rsData.getString(colCt)));
+                res.put(sampleId, new OutPutUnit(rsData.getInt(1), sampleId, rsData.getInt(3), rsData.getString(4), rsData.getString(5), rsData.getString(6), rsData.getString(7), dataList , rsData.getInt(colCt)));
+                julienBarcodeSB.append("'").append(rsData.getInt(colCt)).append("',");
             }
         }
 
@@ -511,8 +514,61 @@ public class VGDataAnylysisSystem_ver1 {
 //            System.out.println(size);
 ////            System.out.println(ctMap.get(size));
 //        }
+
+        julienBarcodeSB.setLength(julienBarcodeSB.length() - 1);
+        
+        String SymSql = "select a.julien_barcode , title , answer from \n" +
+"(SELECT  concat(sq.question_value , psd.answer_id) title  ,  if(psd.user_typed is null , sa.answer , psd.user_typed ) answer , psl.survey_date da, julien_barcode \n" +
+"\n" +
+"FROM patient_profile.patient_survey_link psl\n" +
+"\n" +
+"JOIN patient_profile.patient_survey_data psd ON psl.save_id = psd.save_id\n" +
+"\n" +
+"JOIN patient_profile.survey_answers sa ON psd.answer_id = sa.answer_id\n" +
+"\n" +
+"JOIN patient_profile.survey_questions sq ON psd.question_id = sq.question_id\n" +
+"\n" +
+"WHERE psl.julien_barcode in ("+ julienBarcodeSB.toString() +") order by julien_barcode , psl.survey_date  desc) as a\n" +
+"join\n" +
+"(SELECT julien_barcode , max(survey_date)\n" +
+"\n" +
+"FROM patient_profile.patient_survey_link psl\n" +
+"\n" +
+"JOIN patient_profile.patient_survey_data psd ON psl.save_id = psd.save_id\n" +
+"\n" +
+"JOIN patient_profile.survey_answers sa ON psd.answer_id = sa.answer_id\n" +
+"\n" +
+"JOIN patient_profile.survey_questions sq ON psd.question_id = sq.question_id\n" +
+"\n" +
+"WHERE psl.julien_barcode in ("+ julienBarcodeSB.toString() +") group by julien_barcode) as b\n" +
+"on a.julien_barcode = b.julien_barcode;";
+        
+//        System.out.println(SymSql);
+        ResultSet rsSymRs = db.read(SymSql);
+        while(rsSymRs.next()){
+            SymMap.computeIfAbsent(rsSymRs.getInt(1), x -> new ArrayList()).add(new String[]{rsSymRs.getString(2) , rsSymRs.getString(3)});        
+        }
+       
+        updateTitle();
+        
         db.close();
         return ctMap;
+    }
+    
+    private void updateTitle(){
+        LinkedHashSet<String> set = new LinkedHashSet();
+        titleColMap = new HashMap();
+        for(List<String[]> list : SymMap.values()){
+            for(String[] qa : list){
+                set.add(qa[0]);
+            }
+        }
+        int ct = titleList.size();
+        for(String ti : set){
+            titleList.add(ti);
+            titleColMap.put(ti, ct++);
+        }
+    
     }
 
     private Map<Integer, double[]> getRefMap(List<Panel> panelList) throws SQLException {
