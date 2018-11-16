@@ -7,7 +7,7 @@ import javax.activation.*;
 
 public class EmailAndText {
 
-    public static void sendEmail(String emailFrom , String pw ,String emailTo , String subject, String bodyMessage, String attachmentPath) throws AddressException, MessagingException {
+    public static void sendEmail(String emailFrom , String pw ,String emailTo , String[] emailCC , String subject, String bodyMessage, String attachmentPath) throws AddressException, MessagingException {
         String host = "outlook.office365.com";  //gmail : smtp.gmail.com  vibrant : outlook.office365.com
         /*
          att   @txt.att.net    verizon  @vtext.com
@@ -49,6 +49,14 @@ Republic Wireless	[insert 10-digital number]@text.republicwireless.com
         msg.setFrom(new InternetAddress(emailFrom));
         InternetAddress[] address = {new InternetAddress(emailTo)};
         msg.setRecipients(Message.RecipientType.TO, address);
+        if(emailCC.length != 0){
+            InternetAddress[] addressCC = new InternetAddress[emailCC.length];
+            for(int i = 0 ; i < emailCC.length  ; i ++){
+                addressCC[i] = new InternetAddress(emailCC[i]);
+            }
+            msg.setRecipients(Message.RecipientType.CC, addressCC);
+        }
+        
         msg.setSubject(subject);
         msg.setSentDate(new Date());
         

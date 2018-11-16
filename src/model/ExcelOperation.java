@@ -44,7 +44,7 @@ public class ExcelOperation {
                 wb = new XSSFWorkbook(fileIn);
                 break;
             case SXSSF:
-                wb = new SXSSFWorkbook(1000);
+                wb = new SXSSFWorkbook(10000);
                 break;
             default:
                 wb = null;
@@ -64,7 +64,7 @@ public class ExcelOperation {
                 wb = new XSSFWorkbook();
                 break;
             case SXSSF:
-                wb = new SXSSFWorkbook(1000);
+                wb = new SXSSFWorkbook(10000);
                 break;
             default:
                 wb = null;
